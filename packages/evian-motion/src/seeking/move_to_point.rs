@@ -172,7 +172,7 @@ where
     }
 
     /// Removes this motion's error tolerance.
-    pub const fn withear_error_tolerance(&mut self) -> &mut Self {
+    pub const fn without_error_tolerance(&mut self) -> &mut Self {
         self.tolerances.error_tolerance = None;
         self
     }
@@ -184,7 +184,7 @@ where
     }
 
     /// Removes this motion's velocity tolerance.
-    pub const fn withear_velocity_tolerance(&mut self) -> &mut Self {
+    pub const fn without_velocity_tolerance(&mut self) -> &mut Self {
         self.tolerances.velocity_tolerance = None;
         self
     }
