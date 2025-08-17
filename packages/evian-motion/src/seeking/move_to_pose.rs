@@ -1,4 +1,4 @@
-use core::{future::Future, pin::Pin, task::Poll, time::Duration};
+use core::{f64::consts::PI, future::Future, pin::Pin, task::Poll, time::Duration};
 
 use vexide::time::{Instant, Sleep, sleep};
 
@@ -17,9 +17,9 @@ pub struct State {
     prev_position: Vec2<f64>,
 }
 
-/// Boomerang move-to-pose algorithm.
+/// MoveToPose move-to-pose algorithm.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct BoomerangFuture<'a, M, L, A, T>
+pub struct MoveToPoseFuture<'a, M, L, A, T>
 where
     M: Arcade,
     L: Feedback<Input = f64, Output = f64> + Unpin,
@@ -29,6 +29,7 @@ where
     pub(crate) target_point: Vec2<f64>,
     pub(crate) target_heading: Angle,
     pub(crate) lead: f64,
+    pub(crate) reverse: bool,
     pub(crate) timeout: Option<Duration>,
     pub(crate) tolerances: Tolerances,
     pub(crate) linear_controller: L,
@@ -40,7 +41,7 @@ where
 
 // MARK: Future Poll
 
-impl<M, L, A, T> Future for BoomerangFuture<'_, M, L, A, T>
+impl<M, L, A, T> Future for MoveToPoseFuture<'_, M, L, A, T>
 where
     M: Arcade,
     L: Feedback<Input = f64, Output = f64> + Unpin,
@@ -81,10 +82,15 @@ where
 
         let local_target = carrot - position;
 
-        let angular_error = (heading - local_target.angle().rad()).wrapped();
-        let linear_error = local_target.length();
+        let mut angular_error = (heading - local_target.angle().rad()).wrapped();
+        let mut linear_error = local_target.length();
 
-        let close = linear_error < 7.5;
+        let close = linear_error.abs() < 7.5;
+
+        if this.reverse {
+            linear_error *= -1.0;
+            angular_error = (PI.rad() - angular_error).wrapped();
+        }
 
         if this
             .tolerances
@@ -122,13 +128,19 @@ where
 
 // MARK: Generic Modifiers
 
-impl<M, L, A, T> BoomerangFuture<'_, M, L, A, T>
+impl<M, L, A, T> MoveToPoseFuture<'_, M, L, A, T>
 where
     M: Arcade,
     L: Feedback<Input = f64, Output = f64> + Unpin,
     A: Feedback<Input = Angle, Output = f64> + Unpin,
     T: TracksPosition + TracksHeading + TracksVelocity,
 {
+    /// Reverses this motion, moving to the point backwards rather than forwards.
+    pub fn reverse(&mut self) -> &mut Self {
+        self.reverse = true;
+        self
+    }
+
     /// Modifies this motion's linear feedback controller.
     pub fn with_linear_controller(&mut self, controller: L) -> &mut Self {
         self.linear_controller = controller;
@@ -198,7 +210,7 @@ where
 
 // MARK: Linear PID Modifiers
 
-impl<M, A, T> BoomerangFuture<'_, M, Pid, A, T>
+impl<M, A, T> MoveToPoseFuture<'_, M, Pid, A, T>
 where
     M: Arcade,
     A: Feedback<Input = Angle, Output = f64> + Unpin,
@@ -256,7 +268,7 @@ where
 
 // MARK: Angular PID Modifiers
 
-impl<M, L, T> BoomerangFuture<'_, M, L, AngularPid, T>
+impl<M, L, T> MoveToPoseFuture<'_, M, L, AngularPid, T>
 where
     M: Arcade,
     L: Feedback<Input = f64, Output = f64> + Unpin,

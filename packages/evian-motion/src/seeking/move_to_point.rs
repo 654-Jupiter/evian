@@ -74,22 +74,21 @@ where
 
         let local_target = this.target_point - position;
 
-        let mut distance_error = local_target.length();
+        let mut angle_error = (heading - local_target.angle().rad()).wrapped();
+        let mut linear_error = local_target.length();
 
-        if distance_error.abs() < 7.5 && !state.close {
+        if linear_error.abs() < 7.5 && !state.close {
             state.close = true;
         }
 
-        let mut angle_error = (heading - local_target.angle().rad()).wrapped();
-
         if this.reverse {
-            distance_error *= -1.0;
+            linear_error *= -1.0;
             angle_error = (PI.rad() - angle_error).wrapped();
         }
 
         if this
             .tolerances
-            .check(distance_error, this.drivetrain.tracking.linear_velocity())
+            .check(linear_error, this.drivetrain.tracking.linear_velocity())
             || this
                 .timeout
                 .is_some_and(|timeout| state.start_time.elapsed() > timeout)
@@ -105,7 +104,7 @@ where
                 .update(-angle_error, Angle::ZERO, dt)
         };
         let linear_output =
-            this.linear_controller.update(-distance_error, 0.0, dt) * angle_error.cos();
+            this.linear_controller.update(-linear_error, 0.0, dt) * angle_error.cos();
 
         _ = this
             .drivetrain

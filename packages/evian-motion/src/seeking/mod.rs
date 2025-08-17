@@ -10,10 +10,10 @@ use evian_drivetrain::{
 use evian_math::{Angle, Vec2};
 use evian_tracking::{TracksHeading, TracksPosition, TracksVelocity};
 
-mod boomerang;
+mod move_to_pose;
 mod move_to_point;
 
-pub use boomerang::BoomerangFuture;
+pub use move_to_pose::MoveToPoseFuture;
 pub use move_to_point::MoveToPointFuture;
 
 /// Point-to-point feedback seeking.
@@ -24,7 +24,7 @@ pub use move_to_point::MoveToPointFuture;
 ///
 /// Seeking motions include:
 /// - [`move_to_point`](Seeking::move_to_point), which moves the drivetrain to a desired point.
-/// - [`boomerang`](Seeking::move_to_point), which moves the drivetrain to a desired pose (including heading).
+/// - [`move_to_pose`](Seeking::move_to_point), which moves the drivetrain to a desired pose (including heading).
 #[derive(PartialEq)]
 pub struct Seeking<L, A>
 where
@@ -55,7 +55,7 @@ where
     /// Moves the robot to a 2D point.
     ///
     /// The final heading of the robot after this motion executes is undefined.
-    /// For full pose control, use [`Seeking::boomerang`].
+    /// For full pose control, use [`Seeking::move_to_pose`].
     pub fn move_to_point<'a, M: Arcade, T: TracksPosition + TracksHeading + TracksVelocity>(
         &mut self,
         drivetrain: &'a mut Drivetrain<M, T>,
@@ -75,20 +75,21 @@ where
 
     /// Moves the robot to a desired pose (position and heading).
     ///
-    /// This motion uses a boomerang controller, which is a motion algorithm
+    /// This motion uses a move_to_pose controller, which is a motion algorithm
     /// for moving differential drivetrains to a desired pose. Larger `lead`
     /// values will result in wider arcs, while smaller `lead` values will
     /// result in smaller arcs. You may need to tune the `lead` value in order
     /// to properly reach the desired heading by the end of the motion.
-    pub fn boomerang<'a, M: Arcade, T: TracksPosition + TracksHeading + TracksVelocity>(
+    pub fn move_to_pose<'a, M: Arcade, T: TracksPosition + TracksHeading + TracksVelocity>(
         &mut self,
         drivetrain: &'a mut Drivetrain<M, T>,
         point: impl Into<Vec2<f64>>,
         heading: Angle,
         lead: f64,
-    ) -> BoomerangFuture<'a, M, L, A, T> {
-        BoomerangFuture {
+    ) -> MoveToPoseFuture<'a, M, L, A, T> {
+        MoveToPoseFuture {
             drivetrain,
+            reverse: false,
             target_heading: heading,
             lead,
             target_point: point.into(),
